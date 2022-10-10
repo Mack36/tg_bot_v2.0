@@ -106,9 +106,8 @@ async def on_startup(dp):
         await bot.send_message(admin, 'Bot has started')
 
 async def on_shutdown(dp):
-    async def on_shutdown(dispatcher):
-        await db.pool.close()
-        await bot.delete_webhook()
+    await db.pool.close()
+    await bot.delete_webhook()
 
 
 
