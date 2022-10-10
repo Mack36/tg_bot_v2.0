@@ -1,7 +1,7 @@
 import asyncio
 import asyncpg
 import logging
-from config import PG_USER, PG_PASS, DB_URL
+from config import DB_URL
 
 
 logging.basicConfig(format=u'%(filename)s [LINE:%(lineno)d] #%(levelname)-8s [%(asctime)s]  %(message)s',
