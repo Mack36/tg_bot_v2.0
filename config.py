@@ -3,7 +3,7 @@ from aiogram import Bot
 import os
 
 API_TOKEN = os.getenv('BOT_TOKEN')
-bot = Bot(token=TOKEN)
+bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
 
 HEROKU_APP_NAME = os.getenv('HEROKU_APP_NAME')
