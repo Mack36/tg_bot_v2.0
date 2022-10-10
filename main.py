@@ -9,7 +9,7 @@ from asyncpg.exceptions import UniqueViolationError
 from sql import create_pool
 import re
 from dbcoms import DBCommands
-from config import WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT, API_TOKEN
+from config import WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT, API_TOKEN, WEBHOOK_URL
 
 # Токен, выданный BotFather в телеграмме
 #API_TOKEN = '5691852231:AAFgIfQ780Xqh1thLvarVUrlTeAGQBNxtww'
