@@ -98,6 +98,7 @@ def make_itemlist(items_string):
 
 
 async def on_startup(dp):
+    await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
     global cats, res
     cats = await db.get_categories()
     res = await db.get_items()
@@ -499,7 +500,7 @@ async def go_to_order_works(call: CallbackQuery, all=False):
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
-    start_webhook(
+    executor.start_webhook(
         dispatcher=dp,
         webhook_path=WEBHOOK_PATH,
         skip_updates=True,
