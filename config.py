@@ -16,4 +16,4 @@ WEBHOOK_URL = f'{WEBHOOK_HOST}{WEBHOOK_PATH}'
 # webserver settings
 WEBAPP_HOST = '0.0.0.0'
 WEBAPP_PORT = os.getenv('PORT', default=8000)
-DB_URL = os.getenv('DATABASE_URL')
+DB_URL = os.getenv('HEROKU_POSTGRESQL_SILVER_URL')
