@@ -1,14 +1,26 @@
 import asyncio
-from aiogram import types
-from asyncpg import Connection, Record
+import asyncpg
+from aiogram import types, Bot, Dispatcher
+from asyncpg import Connection, Record, Pool
 from asyncpg.exceptions import UniqueViolationError
-from sql import create_pool
+#from sql import create_pool
 from datetime import datetime
-loop = asyncio.get_event_loop()
-dbinit = loop.run_until_complete(create_pool())
+#from config import DB_URL, dp, db
+import config
+import logging
 
-class DBCommands:
-    pool: Connection = dbinit
+#loop = asyncio.get_event_loop()
+#
+logging.basicConfig(format=u'%(filename)s [LINE:%(lineno)d] #%(levelname)-8s [%(asctime)s]  %(message)s',
+                    level=logging.INFO)
+
+class DBCommands():
+    #loop = asyncio.get_event_loop()
+    async def create_conn(self):
+        #oop = asyncio.get_event_loop(dp)
+        #self.pool = loop.run_until_complete(asyncpg.create_pool(config.DB_URL))
+        self.pool = await asyncpg.create_pool(config.DB_URL)
+
     ADD_NEW_USER = "INSERT INTO users(id, username, surname, nickname, state, phonenum, itemviewed, catviewed) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id"
     GET_USER_BY_ID = "SELECT * FROM users WHERE id = $1"
     GET_CATEGORIES = "SELECT * from categories ORDER BY cat_id"
@@ -37,9 +49,9 @@ class DBCommands:
     LOAD_ALL_ORDERS = "SELECT o.id, o.user_id, u.nickname, o.items, o.date, o.state, o.comment " \
                            "FROM orders o, users u WHERE o.user_id = u.id ORDER BY date;"
 
+
     async def add_new_user(self):
         user = types.User.get_current()
-
         chat_id = user.id
         username = user.first_name
         surname = user.last_name
@@ -50,7 +62,6 @@ class DBCommands:
         catviewed = 0
         args = chat_id, username, surname, nickname, state, phonenum, itemviewed, catviewed
         command = self.ADD_NEW_USER
-        
         try:
             record_id = await self.pool.fetch(command, *args)
             return record_id
@@ -66,14 +77,18 @@ class DBCommands:
         return [dict(row) for row in r]
 
     async def get_categories(self):
-        command = self.GET_CATEGORIES
-        x = await self.pool.fetch(command)
-        return [dict(row) for row in x]
+        async with self.pool.acquire() as con:
+            command = self.GET_CATEGORIES
+            x = await con.fetch(command)
+            # x = await con.fetch(command)
+            # return [dict(row) for row in x]
+            return x
 
     async def get_items(self):
-        command = self.GET_ITEMS
-        l = await self.pool.fetch(command)
-        return [dict(row) for row in l]
+        async with self.pool.acquire() as con:
+            command = self.GET_ITEMS
+            l = await con.fetch(command)
+            return [dict(row) for row in l]
 
     async def upd_user_state(self, state):
         user = types.User.get_current()

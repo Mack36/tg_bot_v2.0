@@ -6,19 +6,20 @@ from aiogram.utils.callback_data import CallbackData
 import asyncio
 from asyncpg import Connection, Record
 from asyncpg.exceptions import UniqueViolationError
-from sql import create_pool
+#from sql import create_pool
 import re
-from dbcoms import DBCommands
-from config import WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT, API_TOKEN, WEBHOOK_URL
+import dbcoms
+from config import WEBHOOK_PATH, WEBAPP_HOST, WEBAPP_PORT, API_TOKEN, WEBHOOK_URL,ADMINS
+
 
 # Токен, выданный BotFather в телеграмме
 #API_TOKEN = '5691852231:AAFgIfQ780Xqh1thLvarVUrlTeAGQBNxtww'
 #loop = asyncio.get_event_loop()
 #dbinit = loop.run_until_complete(create_pool())
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
 admins = []
-admins.append(116264208)
+admins = ADMINS.split(',')
 # admins = (11626420)
 #admins = (116264208, 56450364)
 
@@ -79,10 +80,12 @@ class Korzina:
         order_id = await db.create_order(joined_string, comment)
         return order_id
 
-db = DBCommands()
+
 # Initialize bot and dispatcher
+
 bot = Bot(token=API_TOKEN, parse_mode='HTML')
 dp = Dispatcher(bot)
+db = dbcoms.DBCommands()
 
 def make_itemlist(items_string):
     global res
@@ -98,14 +101,15 @@ def make_itemlist(items_string):
 
 
 async def on_startup(dp):
-    await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
     global cats, res
+    await db.create_conn()
     cats = await db.get_categories()
     res = await db.get_items()
+    await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
     for admin in admins:
         await bot.send_message(admin, 'Bot has started')
 
-async def on_shutdown(dp):
+async def on_shutdown():
     await db.pool.close()
     await bot.delete_webhook()
 
@@ -498,7 +502,7 @@ async def go_to_order_works(call: CallbackQuery, all=False):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     executor.start_webhook(
         dispatcher=dp,
         webhook_path=WEBHOOK_PATH,

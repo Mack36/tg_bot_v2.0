@@ -1,11 +1,13 @@
 from aiogram.dispatcher import Dispatcher
 from aiogram import Bot
 import os
+from dotenv_config import load_dotenv
+load_dotenv()
 
 API_TOKEN = os.getenv('BOT_TOKEN')
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot)
-
+ADMINS = os.getenv('ADMINS')
+#bot = Bot(token=API_TOKEN, parse_mode='HTML')
+#dp = Dispatcher(bot)
 HEROKU_APP_NAME = os.getenv('HEROKU_APP_NAME')
 
 # webhook settings
