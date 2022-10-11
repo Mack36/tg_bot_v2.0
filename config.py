@@ -1,8 +1,8 @@
 from aiogram.dispatcher import Dispatcher
 from aiogram import Bot
 import os
-from dotenv_config import load_dotenv
-load_dotenv()
+#from dotenv_config import load_dotenv
+#load_dotenv()
 
 API_TOKEN = os.getenv('BOT_TOKEN')
 ADMINS = os.getenv('ADMINS')
