@@ -105,13 +105,13 @@ async def on_startup(dp):
     await db.create_conn()
     cats = await db.get_categories()
     res = await db.get_items()
-    await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
+    #await bot.set_webhook(WEBHOOK_URL, drop_pending_updates=True)
     for admin in admins:
         await bot.send_message(admin, 'Bot has started')
 
 async def on_shutdown():
     await db.pool.close()
-    await bot.delete_webhook()
+    #await bot.delete_webhook()
 
 
 
@@ -133,7 +133,7 @@ async def cmd_start(message: types.Message):
         btn1 = ['Корзина 🛒', 'Оформить заказ ✅']
         keyboard.add(*btn1)
         menutxt = "Главное меню"
-    if us_id in admins:
+    if str(us_id) in admins:
         keyboard.add("Работа с заказами 📑")
     keyboard.add("Помощь❓")
     #keyboard.add(btn)
@@ -229,7 +229,7 @@ async def order_works(message: types.Message):
     keyboard.add(*btnrow2)
     keyboard.add('В главное меню ⬆')
     await db.upd_user_state(10)
-    await message.answer('Работа с заказами', reply_markup=keyboard)
+    await message.answer('Выберите пункт', reply_markup=keyboard)
 
 
 @dp.message_handler(lambda message: message.text == "Все заказы")
@@ -246,6 +246,7 @@ async def load_orders(message: types.Message, type=1):
     elif type == 1:
         orders = await db.load_all_orders(type=1) #LOAD_ALL_ORDERS
     orders_txt = ""
+    orders_list = []
     for i, ord in enumerate(orders, start=1):
         state = '▶' if ord['state'] == 1 else '✅'
         orddate = ord['date'].strftime("%Y-%m-%d %H:%M")
@@ -257,8 +258,10 @@ async def load_orders(message: types.Message, type=1):
         if type != 4:
             usernickname = ord['nickname']
             orders_txt += f"<b>{i}.</b> {state} №{ord['id']}: @{usernickname} [{orddate}] {ordcomment}выбрано:\n{tmplist}"
+            orders_list.append(f"<b>{i}.</b> {state} №{ord['id']}: @{usernickname} [{orddate}] {ordcomment}выбрано:\n{tmplist}")
         else:
             orders_txt += f"<b>{i}.</b> {state} №{ord['id']}: [{orddate}] {ordcomment}выбрано:\n{tmplist}"
+            orders_list.append = (f"<b>{i}.</b> {state} №{ord['id']}: [{orddate}] {ordcomment}выбрано:\n{tmplist}")
     if type == 4:
         header = f"<b>Все заказы клиента @{usernickname}:</b>"
     elif type == 3:
@@ -267,7 +270,10 @@ async def load_orders(message: types.Message, type=1):
         header = f"<b>Все открытые заказы:</b>"
     else:
         header = f"<b>Все заказы:</b>"
-    await message.answer(f"{header}\n{orders_txt}")
+    global ordersgl, orders_listgl, headergl
+    ordersgl, orders_listgl, headergl = orders, orders_list, header
+    txt, kb = await prepare_inline(orders, orders_list, header)
+    await message.answer(txt, reply_markup=kb)
 
 @dp.message_handler(lambda message: message.text == "Открытые заказы")
 async def load_act_orders(message: types.Message):
@@ -382,6 +388,8 @@ async def proc_contact(message: types.Message):
                 await message.answer('Некорректный номер, введите номер в формате 998XY1234567')
                 return False
             else:
+                if re.search('^[^\+]*', message.text):
+                    message.text = "+" + message.text
                 await db.upd_user_phonenum(message.text)
         await message.answer('Cохранено')
         keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -422,6 +430,78 @@ async def on_order_create(orderid):
         await bot.send_message(admin, f"<b>✳ {orderdate} Заказ № {orderid}\n<b>От</b> "
                                   f"[@{usernickname}] {username} {usersurname}:</b>\n{listtext}", reply_markup=choice)
 
+async def prepare_inline(orderslist, orderslistln, header, page=1):
+    kb = InlineKeyboardMarkup(row_width=5)
+    max_recs_per_page = 10
+    divisionleft = len(orderslistln) % max_recs_per_page
+    pagestotal = len(orderslistln) // max_recs_per_page
+    if divisionleft != 0:
+        pagestotal += 1
+    if page > pagestotal:
+        page = 1
+    if page < 1:
+        page = pagestotal
+    max_linenum_here = max_recs_per_page * page
+    min_linenum_here = max_recs_per_page * (page - 1) + 1
+
+    if len(orderslistln) >= max_recs_per_page:
+        if page != pagestotal:
+            lines_on_page = max_recs_per_page
+            actual_maxlinenum_here = max_recs_per_page
+        else:
+            lines_on_page = max_recs_per_page - ((page * max_recs_per_page) - len(orderslistln))
+            actual_maxlinenum_here = len(orderslistln)
+    else:
+        lines_on_page = len(orderslistln)
+        actual_maxlinenum_here = lines_on_page
+    linetoshow = ""
+    newlist = []
+    emptylist = []
+    for linenum in range(min_linenum_here, min_linenum_here + lines_on_page):
+        newlist.append(orderslist[linenum-1])
+        linetoshow += orderslistln[linenum-1]
+        linenum += 1
+    empty_btnsnum = max_recs_per_page - lines_on_page
+    if empty_btnsnum > 0:
+        if empty_btnsnum > 4:
+            empty_btnsnum = 4
+        for n in range(1, empty_btnsnum + 1):
+            emptylist.append(' ')
+
+    if emptylist:
+        kb.add(*[InlineKeyboardButton(str(itr + 1), callback_data='o' + str(listelement['id'])) for itr, listelement in
+                 enumerate(newlist)], *[InlineKeyboardButton(emptyelement, callback_data='nothing') for emptyelement in emptylist])
+    else:
+        kb.add(*[InlineKeyboardButton(str(itr + 1), callback_data='o' + str(listelement['id'])) for itr, listelement in
+                   enumerate(newlist)])
+    header += f'\n<b>Результаты {min_linenum_here}-{actual_maxlinenum_here} из {len(orderslistln)}:</b>'
+    # return kb
+    backcbdata = "back"+str(page)
+    fwdcbdata = "fwd"+str(page)
+    allbtndata = 'all' + str(page)
+    allbtndata = "nothing"
+    if pagestotal == 1:
+        backcbdata = fwdcbdata = "nothing"
+    kb.add(InlineKeyboardButton("⬅", callback_data=backcbdata),
+                 InlineKeyboardButton(str(page), callback_data=allbtndata),
+                 InlineKeyboardButton("➡", callback_data=fwdcbdata))
+    final_text = (f'{header}\n{linetoshow}')
+
+    return final_text, kb
+
+async def prepare_add_inline(open: True):
+    kb = InlineKeyboardMarkup(row_width=3)
+    if open:
+        midbtn = InlineKeyboardButton("✅", callback_data='close_order')
+    else:
+        midbtn = InlineKeyboardButton("🔄", callback_data='open_order')
+
+    kb.add(InlineKeyboardButton("⏪", callback_data='prev_order'),
+           midbtn, InlineKeyboardButton("⏩", callback_data='next_order'))
+
+    kb.add(InlineKeyboardButton("Назад к списку", callback_data='to_list'),
+           InlineKeyboardButton("В главное меню", callback_data='exit'))
+    return kb
 
 @dp.message_handler()
 async def cmd_cat_chosen(message: types.Message, catchosen=0):
@@ -501,9 +581,53 @@ async def go_to_order_works(call: CallbackQuery, all=False):
     await order_works(call.message)
 
 
+@dp.callback_query_handler(filters.Regexp(r'^o[0-9]'))
+async def inline_ord_selected(call: CallbackQuery):
+    print(call.data)
+    orderid = int(call.data.split('o')[1])
+    global ordersgl, orders_listgl
+    for i in range(0, len(ordersgl)):
+        if ordersgl[i]['id'] == orderid:
+            order_txt = orders_listgl[i]
+            order_open = True if ordersgl[i]['state'] == 1 else False
+            userid = ordersgl[i]['user_id']
+            user = await db.get_user_by_id(userid)
+            userphonenum = user[0]['phonenum']
+            break
+
+    order_txt += f'☎ {userphonenum}'
+    kb = await prepare_add_inline(order_open)
+    await bot.answer_callback_query(callback_query_id=call.id)
+    await bot.edit_message_text(order_txt, call.from_user.id, call.message.message_id, parse_mode="HTML", reply_markup=kb)
+
+
+@dp.callback_query_handler(filters.Regexp(r'back'))
+async def inline_back_selected(call: CallbackQuery):
+    print(call.data)
+    pgnum = int(call.data[4]) - 1
+    global ordersgl, orders_listgl, headergl
+    await bot.answer_callback_query(callback_query_id=call.id)
+    txt, kb = await prepare_inline(ordersgl, orders_listgl, headergl, pgnum)
+    await bot.edit_message_text(txt, call.from_user.id, call.message.message_id, reply_markup=kb, parse_mode="HTML")
+
+
+@dp.callback_query_handler(filters.Regexp(r'fwd'))
+async def inline_fwd_selected(call: CallbackQuery):
+    print(call.data)
+    pgnum = int(call.data[3]) + 1
+    global ordersgl, orders_listgl, headergl
+    await bot.answer_callback_query(callback_query_id=call.id)
+    txt, kb = await prepare_inline(ordersgl, orders_listgl, headergl, pgnum)
+    await bot.edit_message_text(txt, call.from_user.id, call.message.message_id, reply_markup=kb, parse_mode="HTML")
+
+@dp.callback_query_handler(filters.Regexp(r'nothing'))
+async def inline_fwd_selected(call: CallbackQuery):
+    await bot.answer_callback_query(callback_query_id=call.id)
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    executor.start_webhook(
+    '''executor.start_webhook(
         dispatcher=dp,
         webhook_path=WEBHOOK_PATH,
         skip_updates=True,
@@ -511,5 +635,5 @@ if __name__ == '__main__':
         on_shutdown=on_shutdown,
         host=WEBAPP_HOST,
         port=WEBAPP_PORT,
-    )
-    #executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)
+    )'''
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)
